@@ -27,6 +27,26 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         metavar="ID",
         help="Run only calendar_chaos scenarios with this case ID (full or base ID). Repeatable.",
     )
+    group.addoption(
+        "--calendar-chaos-list",
+        action="store_true",
+        default=False,
+        help="Print the calendar_chaos case catalog and exit.",
+    )
+    parser.addini(
+        "calendar_chaos_default_zones",
+        "Default IANA time zones (space separated) for calendar_chaos markers without zones.",
+        type="args",
+        default=[],
+    )
+
+
+def pytest_cmdline_main(config: pytest.Config) -> int | None:
+    if config.getoption("calendar_chaos_list"):
+        # The terminal reporter is not registered yet at this point, so print directly.
+        print("\n".join(catalog.catalog_lines()))
+        return 0
+    return None
 
 
 def pytest_configure(config: pytest.Config) -> None:
@@ -39,7 +59,9 @@ def pytest_configure(config: pytest.Config) -> None:
     config.stash[_matched_ids] = set()
 
 
-def _marker_args(marker: pytest.Mark) -> tuple[list[str], list[str], bool]:
+def _marker_args(
+    marker: pytest.Mark, default_zones: list[str]
+) -> tuple[list[str], list[str], bool]:
     cases = marker.kwargs.get("cases", marker.args[0] if marker.args else None)
     if isinstance(cases, str) or not cases:
         pytest.fail(
@@ -47,7 +69,7 @@ def _marker_args(marker: pytest.Mark) -> tuple[list[str], list[str], bool]:
             f"valid presets: {', '.join(catalog.preset_names())}",
             pytrace=False,
         )
-    zones = marker.kwargs.get("zones", ["UTC"])
+    zones = marker.kwargs.get("zones", default_zones)
     if isinstance(zones, str) or not zones:
         pytest.fail(f"{MARKER}: 'zones' must be a non-empty list of IANA names", pytrace=False)
     return list(cases), list(zones), bool(marker.kwargs.get("tick", False))
@@ -67,7 +89,8 @@ def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
             "Use only one on a test.",
             pytrace=False,
         )
-    cases, zones, _tick = _marker_args(marker)
+    default_zones = list(metafunc.config.getini("calendar_chaos_default_zones")) or ["UTC"]
+    cases, zones, _tick = _marker_args(marker, default_zones)
     try:
         scenarios = catalog.expand(cases, zones)
     except ValueError as exc:

@@ -3,6 +3,17 @@
 All notable changes to this project are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [SemVer](https://semver.org/).
 
+## [0.3.0] - 2026-10-23
+
+### Added
+- `--calendar-chaos-list` prints the case catalog and exits without running tests.
+- `calendar_chaos_default_zones` ini option sets the default zones for markers without `zones`.
+- Project URLs (homepage, source, issues, changelog) in the package metadata, so the PyPI page
+  links back to the repository.
+
+### Changed
+- README: badges, CLI and configuration docs, install and Windows notes.
+
 ## [0.2.0] - 2026-10-23
 
 First public release.

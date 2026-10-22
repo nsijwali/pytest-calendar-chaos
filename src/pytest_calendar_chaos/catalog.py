@@ -135,6 +135,19 @@ def preset_names() -> list[str]:
     return sorted([*PRESETS, DST_PRESET])
 
 
+def catalog_lines() -> list[str]:
+    """Human-readable catalog, as printed by ``--calendar-chaos-list``."""
+    lines: list[str] = []
+    for preset, cases in PRESETS.items():
+        lines.append(f"{preset}:")
+        for case in cases:
+            when = case.wall_time.isoformat(sep=" ")
+            lines.append(f"  {case.id:<32} {when:<26}  {case.label}")
+    lines.append(f"{DST_PRESET}:")
+    lines.append("  computed per zone from zoneinfo for 2027: spring-forward and fall-back moments")
+    return lines
+
+
 def zone_slug(zone: str) -> str:
     return zone.lower().replace("/", "-").replace("_", "-")
 

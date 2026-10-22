@@ -1,5 +1,10 @@
 # pytest-calendar-chaos
 
+[![PyPI](https://img.shields.io/pypi/v/pytest-calendar-chaos)](https://pypi.org/project/pytest-calendar-chaos/)
+[![Python](https://img.shields.io/pypi/pyversions/pytest-calendar-chaos)](https://pypi.org/project/pytest-calendar-chaos/)
+[![CI](https://github.com/nsijwali/pytest-calendar-chaos/actions/workflows/ci.yml/badge.svg)](https://github.com/nsijwali/pytest-calendar-chaos/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/pypi/l/pytest-calendar-chaos)](LICENSE)
+
 Your tests pass today. Will they pass on Feb 29?
 
 A pytest plugin that runs each **explicitly marked** test once per tricky calendar moment
@@ -61,6 +66,19 @@ working.
 unaffected. A marked test with no matching scenario is skipped. An ID that matches nothing in the
 whole session prints a warning at the end of the run (not shown under pytest-xdist).
 
+`--calendar-chaos-list` prints the case catalog (IDs, local times, labels) and exits without
+running any tests. Use it to find the ID to pass to `--calendar-case`.
+
+## Configuration
+
+`calendar_chaos_default_zones` (ini option, space separated) sets the zones used by markers that
+don't pass `zones`. Explicit `zones=[...]` on a marker always wins. Default: `UTC`.
+
+```ini
+[pytest]
+calendar_chaos_default_zones = UTC America/New_York
+```
+
 ## Fixture
 
 `calendar_case` returns the current `Scenario` (`.case`, `.zone`, `.moment`, `.note`, `.id`), or
@@ -100,9 +118,11 @@ Case IDs are a public API: adding cases is a minor release, changing or removing
 - **Comparing aware datetimes in a repeated hour.** Per PEP 495, a `fold` datetime in a repeated DST
   hour never compares equal to a datetime in another time zone, even at the same instant. Compare
   `calendar_case.moment.astimezone(timezone.utc)` or use `.timestamp()`.
-- Non-UTC zones rely on time-machine's time zone handling (`TZ` / `time.tzset`). This is tested on
-  Linux; the CI matrix includes macOS and Windows, and Windows behaviour should be treated as
-  unverified until that job is green.
+- Freezing exact moments in non-UTC zones, including every DST case, is tested in CI on Linux,
+  macOS and Windows. Naive `datetime.now()` returning the zone's local wall time relies on
+  time-machine setting the process time zone (`TZ` / `time.tzset`); that is tested on Linux and
+  macOS only, because Windows has no `tzset`. On Windows, compare aware datetimes rather than
+  relying on naive local time.
 - Under pytest-xdist the failure sections and the end-of-run summary work, but the "unmatched
   `--calendar-case`" warning is not printed.
 - Async tests get no special handling.

@@ -31,6 +31,12 @@ dependencies = [
     "tzdata; sys_platform == 'win32'",
 ]
 
+[project.urls]
+Homepage = "https://github.com/nsijwali/pytest-calendar-chaos"
+Source = "https://github.com/nsijwali/pytest-calendar-chaos"
+Issues = "https://github.com/nsijwali/pytest-calendar-chaos/issues"
+Changelog = "https://github.com/nsijwali/pytest-calendar-chaos/blob/main/CHANGELOG.md"
+
 [project.entry-points.pytest11]
 calendar_chaos = "pytest_calendar_chaos.plugin"
 
