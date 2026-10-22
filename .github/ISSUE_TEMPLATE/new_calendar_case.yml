@@ -1,0 +1,32 @@
+name: New calendar case
+description: Propose a date or time that breaks real code
+labels: [new-case]
+body:
+  - type: input
+    id: moment
+    attributes:
+      label: The date or time
+      description: Include the time zone, for example "2028-02-29 12:00 America/New_York".
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why does it break code?
+    validations:
+      required: true
+  - type: textarea
+    id: bug
+    attributes:
+      label: Example bug
+      description: A short real-world snippet that fails at this moment.
+      render: python
+    validations:
+      required: true
+  - type: dropdown
+    id: preset
+    attributes:
+      label: Preset it belongs to
+      options: [leap_day, month_end, year_end, midnight, dst, a new preset]
+    validations:
+      required: true

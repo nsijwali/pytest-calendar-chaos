@@ -1,0 +1,59 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pytest-calendar-chaos"
+dynamic = ["version"]
+description = "Run marked pytest tests across tricky calendar moments (leap day, month end, year end, midnight, DST) with the clock frozen by time-machine."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Nitin Sijwali" }]
+keywords = ["pytest", "pytest-plugin", "testing", "datetime", "timezone", "leap-year"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Framework :: Pytest",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Software Development :: Testing",
+    "Typing :: Typed",
+]
+dependencies = [
+    "pytest>=8.0",
+    "time-machine>=2.14",
+    "tzdata; sys_platform == 'win32'",
+]
+
+[project.entry-points.pytest11]
+calendar_chaos = "pytest_calendar_chaos.plugin"
+
+[dependency-groups]
+dev = ["pytest", "pytest-xdist", "coverage", "ruff", "mypy", "build", "twine", "pre-commit"]
+
+[tool.hatch.version]
+path = "src/pytest_calendar_chaos/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pytest_calendar_chaos"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-p no:cacheprovider"
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+strict = true
+files = ["src"]
