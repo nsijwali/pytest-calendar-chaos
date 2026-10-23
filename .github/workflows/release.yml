@@ -59,16 +59,18 @@ jobs:
         run: |
           version="${GITHUB_REF_NAME#v}"
           uv venv /tmp/verify-env
-          for attempt in 1 2 3 4 5 6; do
+          # TestPyPI's simple index can lag a few minutes behind an upload.
+          for attempt in $(seq 1 20); do
             if uv pip install --python /tmp/verify-env/bin/python \
+                 --no-cache \
                  --index-url https://test.pypi.org/simple/ \
                  --extra-index-url https://pypi.org/simple/ \
                  --index-strategy unsafe-best-match \
                  "pytest-calendar-chaos==$version" pytest; then
               break
             fi
-            test "$attempt" -lt 6
-            sleep 20
+            test "$attempt" -lt 20
+            sleep 15
           done
           cd examples
           set +e

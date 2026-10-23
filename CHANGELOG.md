@@ -3,6 +3,13 @@
 All notable changes to this project are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [SemVer](https://semver.org/).
 
+## [0.3.1] - 2026-10-23
+
+### Changed
+- README: plain-language intro and a demo recording, so the PyPI page matches the GitHub page.
+- Release workflow: the TestPyPI verify step now retries for about five minutes instead of two,
+  because TestPyPI's index can lag behind an upload.
+
 ## [0.3.0] - 2026-10-23
 
 ### Added
