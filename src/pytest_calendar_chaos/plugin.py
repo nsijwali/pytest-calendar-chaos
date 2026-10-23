@@ -59,9 +59,7 @@ def pytest_configure(config: pytest.Config) -> None:
     config.stash[_matched_ids] = set()
 
 
-def _marker_args(
-    marker: pytest.Mark, default_zones: list[str]
-) -> tuple[list[str], list[str], bool]:
+def _marker_args(marker: pytest.Mark, default_zones: list[str]) -> tuple[list[str], list[str]]:
     cases = marker.kwargs.get("cases", marker.args[0] if marker.args else None)
     if isinstance(cases, str) or not cases:
         pytest.fail(
@@ -72,7 +70,7 @@ def _marker_args(
     zones = marker.kwargs.get("zones", default_zones)
     if isinstance(zones, str) or not zones:
         pytest.fail(f"{MARKER}: 'zones' must be a non-empty list of IANA names", pytrace=False)
-    return list(cases), list(zones), bool(marker.kwargs.get("tick", False))
+    return list(cases), list(zones)
 
 
 def _selected(scenario: catalog.Scenario, wanted: set[str]) -> bool:
@@ -90,7 +88,7 @@ def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
             pytrace=False,
         )
     default_zones = list(metafunc.config.getini("calendar_chaos_default_zones")) or ["UTC"]
-    cases, zones, _tick = _marker_args(marker, default_zones)
+    cases, zones = _marker_args(marker, default_zones)
     try:
         scenarios = catalog.expand(cases, zones)
     except ValueError as exc:

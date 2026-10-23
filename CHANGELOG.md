@@ -3,6 +3,17 @@
 All notable changes to this project are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [SemVer](https://semver.org/).
 
+## [0.4.1] - 2026-10-23
+
+### Changed
+- README: document that `tick=False` freezes `time.time()` and `datetime.now()` (so wall-clock wait
+  loops hang), and that `time.monotonic()`, `time.perf_counter()` and the asyncio loop clock are
+  not mocked.
+- Release workflow: the TestPyPI verify step now installs only this package from TestPyPI
+  (`--no-deps`) and takes its dependencies from PyPI.
+- Development lock file: resolve only packages that are at least a week old (`exclude-newer`).
+- Internal: removed an unused value in the marker parsing.
+
 ## [0.4.0] - 2026-10-23
 
 ### Added

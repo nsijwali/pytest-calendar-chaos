@@ -66,3 +66,8 @@ files = ["src"]
 
 [tool.hatch.build.targets.sdist]
 exclude = ["docs"]
+
+[tool.uv]
+# Only resolve dev tools that have been on PyPI for about a week. Move this date forward when
+# you intentionally update the lock file.
+exclude-newer = "2026-10-16T00:00:00Z"

@@ -59,19 +59,21 @@ jobs:
         run: |
           version="${GITHUB_REF_NAME#v}"
           uv venv /tmp/verify-env
+          # Only our own package comes from TestPyPI (anyone can upload there), and with
+          # --no-deps nothing else can be pulled from it. Dependencies come from real PyPI.
           # TestPyPI's simple index can lag a few minutes behind an upload.
           for attempt in $(seq 1 20); do
             if uv pip install --python /tmp/verify-env/bin/python \
-                 --no-cache \
+                 --no-cache --no-deps \
                  --index-url https://test.pypi.org/simple/ \
-                 --extra-index-url https://pypi.org/simple/ \
-                 --index-strategy unsafe-best-match \
-                 "pytest-calendar-chaos==$version" pytest; then
+                 "pytest-calendar-chaos==$version"; then
               break
             fi
             test "$attempt" -lt 20
             sleep 15
           done
+          # Keep these bounds in sync with [project].dependencies in pyproject.toml.
+          uv pip install --python /tmp/verify-env/bin/python "pytest>=8.0" "time-machine>=2.14"
           cd examples
           set +e
           /tmp/verify-env/bin/python -m pytest -p no:cacheprovider > /tmp/out.txt 2>&1

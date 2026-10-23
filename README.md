@@ -129,6 +129,12 @@ Case IDs are a public API: adding cases is a minor release, changing or removing
 
 - Only the clock inside the Python process is mocked. Databases, subprocesses and C extensions that
   read the system clock are not.
+- **The clock is frozen by default (`tick=False`).** `time.time()` and `datetime.now()` never
+  advance inside the test, so code that waits in a loop for the wall clock to pass a deadline will
+  hang. Pass `tick=True` for tests that need time to move.
+- **Only wall-clock time is mocked.** `time.monotonic()` and `time.perf_counter()` keep running in
+  real time, and so does the asyncio event loop clock: `asyncio.sleep` and `asyncio.wait_for`
+  still take real time even when `datetime.now()` is frozen.
 - Fixtures with class, module or session scope are set up before the freeze and see real time.
   Function-scoped fixtures and the test body see the mocked time.
 - **Comparing aware datetimes in a repeated hour.** Per PEP 495, a `fold` datetime in a repeated DST
