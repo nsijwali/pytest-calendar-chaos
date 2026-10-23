@@ -25,6 +25,8 @@ import pytest
 def test_subscription_renewal(): ...
 ```
 
+![Demo: pytest-calendar-chaos catching a month-end bug](https://raw.githubusercontent.com/nsijwali/pytest-calendar-chaos/main/docs/demo.gif)
+
 A failing run looks like this (from `examples/`, a renewal function that breaks at month end):
 
 ```

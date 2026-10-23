@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://nsijwali.github.io/pytest-calendar-chaos/sitemap.xml

@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pytest-calendar-chaos: test leap day, month end and DST bugs in Python</title>
+<meta name="description" content="A pytest plugin that runs your marked tests on leap day, month end, year end, midnight and daylight saving time changes with the clock frozen by time-machine. Failures print the exact date and a one-line command to reproduce.">
+<link rel="canonical" href="https://nsijwali.github.io/pytest-calendar-chaos/">
+<meta property="og:title" content="pytest-calendar-chaos">
+<meta property="og:description" content="Run your pytest tests on Feb 29, month end and DST changes.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://nsijwali.github.io/pytest-calendar-chaos/">
+<meta property="og:image" content="https://nsijwali.github.io/pytest-calendar-chaos/demo.gif">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareSourceCode",
+  "name": "pytest-calendar-chaos",
+  "description": "A pytest plugin that runs marked tests across leap day, month end, year end, midnight and DST transitions with the clock frozen by time-machine.",
+  "programmingLanguage": "Python",
+  "codeRepository": "https://github.com/nsijwali/pytest-calendar-chaos",
+  "license": "https://opensource.org/license/mit",
+  "author": { "@type": "Person", "name": "Nitin Sijwali", "url": "https://github.com/nsijwali" },
+  "url": "https://nsijwali.github.io/pytest-calendar-chaos/"
+}
+</script>
+<style>
+  :root { --bg:#fff; --fg:#1b1f24; --muted:#586069; --line:#d8dee4; --code:#f4f6f8; --accent:#0b5fff; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#14161a; --fg:#e6e8eb; --muted:#9aa3ae; --line:#2b3038; --code:#1d2127; --accent:#7aa7ff; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:17px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 48px 16px 72px; }
+  h1 { font-size: 2rem; line-height: 1.2; margin: 0 0 8px; }
+  h2 { font-size: 1.25rem; margin: 40px 0 8px; }
+  p { margin: 12px 0; }
+  .lead { color: var(--muted); font-size: 1.1rem; }
+  a { color: var(--accent); }
+  pre, code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .9rem; }
+  pre { background: var(--code); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; overflow-x: auto; }
+  code { background: var(--code); padding: 1px 5px; border-radius: 4px; }
+  pre code { background: none; padding: 0; }
+  img { max-width: 100%; height: auto; border-radius: 8px; border: 1px solid var(--line); }
+  ul { padding-left: 20px; }
+  nav a { margin-right: 16px; }
+  footer { margin-top: 48px; color: var(--muted); font-size: .9rem; }
+</style>
+</head>
+<body>
+<main>
+  <nav><a href="https://pypi.org/project/pytest-calendar-chaos/">PyPI</a><a href="https://github.com/nsijwali/pytest-calendar-chaos">GitHub</a><a href="https://github.com/nsijwali/pytest-calendar-chaos/blob/main/CHANGELOG.md">Changelog</a></nav>
+  <h1>pytest-calendar-chaos</h1>
+  <p class="lead">Your tests pass today. Will they pass on Feb 29? This pytest plugin runs your marked tests on leap day, month end, year end, midnight and daylight saving time changes, with the clock frozen.</p>
+
+  <img src="demo.gif" alt="Terminal recording: pytest-calendar-chaos finds a month-end bug in a renewal function" width="1040" height="622">
+
+  <h2>The problem</h2>
+  <p>Most date bugs are not exotic. A renewal function that does <code>created_at.replace(month=created_at.month + 1)</code> passes every test you wrote on the 15th, then raises an error on Jan 31 and on Dec 31. Nothing in a normal test run visits those dates.</p>
+
+  <h2>Install</h2>
+<pre><code>pip install pytest-calendar-chaos</code></pre>
+  <p>Python 3.10+ and pytest 8+. Clock mocking is done by <a href="https://github.com/adamchainz/time-machine">time-machine</a>.</p>
+
+  <h2>Use it</h2>
+<pre><code>import pytest
+
+@pytest.mark.calendar_chaos(
+    cases=["leap_day", "month_end", "dst"], zones=["UTC", "America/New_York"]
+)
+def test_subscription_renewal(): ...</code></pre>
+  <p>Each marked test runs once per scenario. When one fails, the report names the scenario, the exact mocked time and a command that reruns only that scenario.</p>
+
+  <h2>What it covers</h2>
+  <ul>
+    <li>Leap day (Feb 29 2028), including the last microsecond of the day</li>
+    <li>Month ends and starts, including Feb 28 and Feb 29</li>
+    <li>Year end and the first moment of the new year</li>
+    <li>Midnight boundaries</li>
+    <li>Daylight saving time changes computed per time zone, including both passes through the repeated hour</li>
+  </ul>
+  <p>Scenario IDs are stable and never depend on today's date, so a saved reproduce command keeps working. Run <code>pytest --calendar-chaos-list</code> to see them all.</p>
+
+  <h2>Limits</h2>
+  <p>Only the clock inside the Python process is mocked. Databases, subprocesses and C extensions that read the system clock are not. See the <a href="https://github.com/nsijwali/pytest-calendar-chaos#limitations">README</a> for the full list.</p>
+
+  <footer>MIT licensed. By <a href="https://github.com/nsijwali">Nitin Sijwali</a>. Found a date that bit you? <a href="https://github.com/nsijwali/pytest-calendar-chaos/issues/new/choose">Propose a new case</a>.</footer>
+</main>
+</body>
+</html>
