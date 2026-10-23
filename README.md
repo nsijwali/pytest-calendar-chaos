@@ -11,7 +11,7 @@ Test your Python code on leap day (Feb 29), the last day of the month, New Year'
 and daylight saving time changes, without waiting for those dates to arrive.
 
 A pytest plugin that runs each **explicitly marked** test once per tricky calendar moment
-(leap day, month end, year end, midnight, DST transitions) with the clock frozen by
+(leap day, month end, year end, midnight, ISO week 53, the 2038 limit, DST transitions) with the clock frozen by
 [time-machine](https://github.com/adamchainz/time-machine). When a run fails, the report tells you
 which scenario failed, the exact mocked time, and one command that reruns only that scenario.
 
@@ -53,7 +53,7 @@ Requires Python 3.10+ and pytest 8+. Clock mocking is done entirely by `time-mac
 module (`pytestmark`). The closest marker wins.
 
 - `cases`: required, non-empty list of presets: `leap_day`, `month_end`, `year_end`, `midnight`,
-  `dst` (`-` and `_` are interchangeable). Unknown names are a collection error listing the valid
+  `iso_week`, `y2038`, `dst` (`-` and `_` are interchangeable). Unknown names are a collection error listing the valid
   presets.
 - `zones`: optional IANA zone names, default `["UTC"]`. Each fixed case is a local wall-clock time
   placed in each zone. An unknown zone is a collection error naming it.
@@ -99,7 +99,18 @@ Fixed presets use fixed years (2027 normal, 2028 leap); nothing is computed from
 | month_end | `month-end-jan-31-2027`, `month-end-feb-28-2027`, `month-start-mar-01-2027`, `month-end-apr-30-2027`, `month-end-feb-29-2028` |
 | year_end | `year-end-2027`, `year-end-last-microsecond-2027`, `new-year-2028` |
 | midnight | `midnight-before-2027-06-15`, `midnight-after-2027-06-16` |
+| iso_week | `iso-week-53-2026-12-31`, `iso-week-53-new-year-2027`, `iso-week-1-2027-01-04` |
+| y2038 | `y2038-before-limit`, `y2038-last-valid-second`, `y2038-after-limit` |
 | dst | computed per zone from `zoneinfo` for 2027 (below) |
+
+`iso_week` covers 2026, a year with 53 ISO weeks: Dec 31 2026 and Jan 1 2027 both fall in ISO week 53
+of ISO year 2026, so code that mixes the calendar year (`%Y`) with the ISO week (`%V`) or uses
+`%G` incorrectly breaks here.
+
+`y2038` sits on the signed 32-bit `time_t` limit, 2038-01-19 03:14:07 UTC (2\*\*31 - 1 seconds). These
+three cases are absolute UTC instants, so they are the same moment in every zone (only the local
+wall-clock reading changes). Python itself handles these dates; the cases help find code that
+stores times in 32-bit fields, such as databases, serialization formats and C extensions.
 
 ### DST
 

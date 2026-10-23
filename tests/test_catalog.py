@@ -1,6 +1,6 @@
 import calendar
 import re
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -21,6 +21,8 @@ def test_catalog_size() -> None:
         "month_end": 5,
         "year_end": 3,
         "midnight": 2,
+        "iso_week": 3,
+        "y2038": 3,
     }
 
 
@@ -82,7 +84,8 @@ def test_zone_slug() -> None:
 
 def test_expand_unknown_preset_lists_valid() -> None:
     with pytest.raises(
-        ValueError, match="valid presets: dst, leap_day, midnight, month_end, year_end"
+        ValueError,
+        match="valid presets: dst, iso_week, leap_day, midnight, month_end, y2038, year_end",
     ):
         expand(["nope"])
 
@@ -90,3 +93,42 @@ def test_expand_unknown_preset_lists_valid() -> None:
 def test_expand_unknown_zone_names_it() -> None:
     with pytest.raises(ValueError, match="Mars/Olympus"):
         expand(["leap_day"], ["Mars/Olympus"])
+
+
+def test_iso_week_cases_straddle_the_calendar_and_iso_year() -> None:
+    by_id = {c.id: c.wall_time.isocalendar() for c in PRESETS["iso_week"]}
+    # 2026 has 53 ISO weeks: Dec 31 2026 and Jan 1 2027 both belong to ISO year 2026, week 53
+    assert by_id["iso-week-53-2026-12-31"][:2] == (2026, 53)
+    assert by_id["iso-week-53-new-year-2027"][:2] == (2026, 53)
+    assert PRESETS["iso_week"][1].wall_time.year == 2027  # calendar year already rolled over
+    # the first Monday of 2027 starts ISO week 1
+    assert by_id["iso-week-1-2027-01-04"][:2] == (2027, 1)
+    assert by_id["iso-week-1-2027-01-04"][2] == 1
+
+
+def test_y2038_cases_sit_on_the_32_bit_time_t_limit() -> None:
+    limit = 2**31 - 1
+    cases = {c.id: c for c in PRESETS["y2038"]}
+    assert all(c.utc for c in cases.values())
+
+    def ts(case_id: str) -> int:
+        return int(cases[case_id].wall_time.replace(tzinfo=timezone.utc).timestamp())
+
+    assert ts("y2038-before-limit") == limit - 1
+    assert ts("y2038-last-valid-second") == limit
+    assert ts("y2038-after-limit") == limit + 1
+
+
+def test_utc_cases_keep_the_same_instant_in_every_zone() -> None:
+    scenarios = expand(["y2038"], ["UTC", "America/New_York", "Asia/Kolkata"])
+    assert len(scenarios) == 9
+    for s in scenarios:
+        assert s.moment.astimezone(timezone.utc).replace(tzinfo=None) == s.case.wall_time
+    ny = next(s for s in scenarios if s.id == "y2038-last-valid-second@america-new-york")
+    assert ny.moment == datetime(2038, 1, 18, 22, 14, 7, tzinfo=ny.moment.tzinfo)  # UTC-5 in winter
+    assert ny.moment.timestamp() == 2**31 - 1
+
+
+def test_local_cases_still_follow_the_zone() -> None:
+    (s,) = [s for s in expand(["leap_day"], ["Asia/Kolkata"]) if s.case.id == "leap-day-2028"]
+    assert s.moment.hour == 12 and s.moment.astimezone(timezone.utc).hour == 6

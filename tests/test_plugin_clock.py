@@ -103,3 +103,44 @@ def test_calendar_case_none_for_unmarked(pytester: pytest.Pytester) -> None:
         """
     )
     pytester.runpytest().assert_outcomes(passed=1)
+
+
+def test_y2038_instants_are_exact_in_any_zone(pytester: pytest.Pytester) -> None:
+    pytester.makepyfile(
+        """
+        import time
+        from datetime import datetime, timezone
+        import pytest
+
+        LIMIT = 2**31 - 1
+
+        @pytest.mark.calendar_chaos(cases=["y2038"], zones=["UTC", "America/New_York"])
+        def test_a(calendar_case):
+            offset = {"y2038-before-limit": -1, "y2038-last-valid-second": 0,
+                      "y2038-after-limit": 1}[calendar_case.case.id]
+            assert int(time.time()) == LIMIT + offset
+            assert datetime.now(timezone.utc).timestamp() == LIMIT + offset
+        """
+    )
+    pytester.runpytest().assert_outcomes(passed=6)
+
+
+def test_iso_week_53_is_visible_to_the_code_under_test(pytester: pytest.Pytester) -> None:
+    pytester.makepyfile(
+        """
+        from datetime import datetime
+        import pytest
+
+        @pytest.mark.calendar_chaos(cases=["iso_week"])
+        def test_a(calendar_case):
+            now = datetime.now()
+            iso_year, iso_week, _ = now.isocalendar()
+            if calendar_case.case.id == "iso-week-53-new-year-2027":
+                assert now.year == 2027 and (iso_year, iso_week) == (2026, 53)
+            elif calendar_case.case.id == "iso-week-53-2026-12-31":
+                assert (iso_year, iso_week) == (2026, 53)
+            else:
+                assert (iso_year, iso_week) == (2027, 1)
+        """
+    )
+    pytester.runpytest().assert_outcomes(passed=3)

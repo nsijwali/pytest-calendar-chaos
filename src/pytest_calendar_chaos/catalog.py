@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 
@@ -17,7 +17,8 @@ class Case:
     id: str
     label: str
     preset: str
-    wall_time: datetime  # naive local wall-clock time
+    wall_time: datetime  # naive local wall-clock time (a UTC time when ``utc`` is True)
+    utc: bool = False  # True: an absolute UTC instant, the same in every zone
 
 
 @dataclass(frozen=True)
@@ -38,6 +39,11 @@ def _c(id_: str, label: str, preset: str, *args: int) -> Case:
     # args are (year, month, day[, hour, minute, second[, microsecond]])
     wall_time = datetime(*args)  # type: ignore[arg-type]
     return Case(id=id_, label=label, preset=preset, wall_time=wall_time)
+
+
+def _u(id_: str, label: str, preset: str, *args: int) -> Case:
+    # Like _c, but the time is a UTC instant that does not shift with the zone.
+    return Case(id=id_, label=label, preset=preset, wall_time=datetime(*args), utc=True)  # type: ignore[arg-type]
 
 
 _NOON = (12, 0, 0)
@@ -124,6 +130,72 @@ PRESETS: dict[str, tuple[Case, ...]] = {
             0,
         ),
     ),
+    # 2026 has 53 ISO weeks, so the calendar year and the ISO year disagree around New Year.
+    "iso_week": (
+        _c(
+            "iso-week-53-2026-12-31",
+            "Last day of 2026, ISO week 53",
+            "iso_week",
+            2026,
+            12,
+            31,
+            *_NOON,
+        ),
+        _c(
+            "iso-week-53-new-year-2027",
+            "New Year's Day 2027, still ISO week 53 of 2026",
+            "iso_week",
+            2027,
+            1,
+            1,
+            *_NOON,
+        ),
+        _c(
+            "iso-week-1-2027-01-04",
+            "First day of ISO week 1 of 2027",
+            "iso_week",
+            2027,
+            1,
+            4,
+            *_NOON,
+        ),
+    ),
+    # A signed 32-bit time_t overflows after 2038-01-19 03:14:07 UTC (2**31 - 1 seconds).
+    "y2038": (
+        _u(
+            "y2038-before-limit",
+            "One second before the 32-bit time_t limit",
+            "y2038",
+            2038,
+            1,
+            19,
+            3,
+            14,
+            6,
+        ),
+        _u(
+            "y2038-last-valid-second",
+            "Last second a signed 32-bit time_t can hold",
+            "y2038",
+            2038,
+            1,
+            19,
+            3,
+            14,
+            7,
+        ),
+        _u(
+            "y2038-after-limit",
+            "First second past the 32-bit time_t limit",
+            "y2038",
+            2038,
+            1,
+            19,
+            3,
+            14,
+            8,
+        ),
+    ),
 }
 
 
@@ -141,8 +213,8 @@ def catalog_lines() -> list[str]:
     for preset, cases in PRESETS.items():
         lines.append(f"{preset}:")
         for case in cases:
-            when = case.wall_time.isoformat(sep=" ")
-            lines.append(f"  {case.id:<32} {when:<26}  {case.label}")
+            when = case.wall_time.isoformat(sep=" ") + (" UTC" if case.utc else "")
+            lines.append(f"  {case.id:<32} {when:<30}  {case.label}")
     lines.append(f"{DST_PRESET}:")
     lines.append("  computed per zone from zoneinfo for 2027: spring-forward and fall-back moments")
     return lines
@@ -196,7 +268,11 @@ def expand(presets: Iterable[str], zones: Sequence[str] = ("UTC",)) -> list[Scen
         elif name in PRESETS:
             for case in PRESETS[name]:
                 for zone, info in infos:
-                    add(Scenario(case=case, zone=zone, moment=case.wall_time.replace(tzinfo=info)))
+                    if case.utc:
+                        moment = case.wall_time.replace(tzinfo=timezone.utc).astimezone(info)
+                    else:
+                        moment = case.wall_time.replace(tzinfo=info)
+                    add(Scenario(case=case, zone=zone, moment=moment))
         else:
             raise ValueError(f"unknown preset {raw!r}; valid presets: {', '.join(preset_names())}")
     return scenarios

@@ -3,6 +3,17 @@
 All notable changes to this project are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [SemVer](https://semver.org/).
 
+## [0.4.0] - 2026-10-23
+
+### Added
+- `iso_week` preset: ISO week 53 of 2026 and the first ISO week of 2027
+  (`iso-week-53-2026-12-31`, `iso-week-53-new-year-2027`, `iso-week-1-2027-01-04`).
+- `y2038` preset: the signed 32-bit `time_t` limit (`y2038-before-limit`,
+  `y2038-last-valid-second`, `y2038-after-limit`). These are absolute UTC instants and are the
+  same moment in every zone.
+- `Case.utc` field (default `False`). For `utc=True` cases, `wall_time` is a UTC time instead of a
+  local wall-clock time.
+
 ## [0.3.1] - 2026-10-23
 
 ### Changed

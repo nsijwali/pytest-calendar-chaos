@@ -98,7 +98,7 @@ def test_unknown_preset_error(pytester: pytest.Pytester) -> None:
     )
     result = pytester.runpytest()
     result.assert_outcomes(errors=1)
-    result.stdout.fnmatch_lines(["*unknown preset 'bogus'*valid presets: dst, leap_day*"])
+    result.stdout.fnmatch_lines(["*unknown preset 'bogus'*valid presets: dst, iso_week, leap_day*"])
 
 
 def test_unknown_zone_error(pytester: pytest.Pytester) -> None:
