@@ -7,6 +7,9 @@
 
 Your tests pass today. Will they pass on Feb 29?
 
+Test your Python code on leap day (Feb 29), the last day of the month, New Year's Eve, midnight
+and daylight saving time changes, without waiting for those dates to arrive.
+
 A pytest plugin that runs each **explicitly marked** test once per tricky calendar moment
 (leap day, month end, year end, midnight, DST transitions) with the clock frozen by
 [time-machine](https://github.com/adamchainz/time-machine). When a run fails, the report tells you
