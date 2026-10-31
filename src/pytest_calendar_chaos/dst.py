@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from functools import cache
 from typing import NamedTuple
 from zoneinfo import ZoneInfo
 
@@ -35,6 +36,13 @@ def transitions(zone: str, year: int = REFERENCE_YEAR) -> list[Transition]:
 
     Assumes at most one change per hour, which holds for every zone in tzdata.
     """
+    return list(_transitions(zone, year))
+
+
+@cache
+def _transitions(zone: str, year: int) -> tuple[Transition, ...]:
+    # Cached: the hourly scan is the slow part and the result is immutable. The cache lives for
+    # the process, which is fine because tz data does not change under a running pytest session.
     info = validate_zone(zone)
     start = int(datetime(year, 1, 1, tzinfo=timezone.utc).timestamp())
     end = int(datetime(year + 1, 1, 1, tzinfo=timezone.utc).timestamp())
@@ -53,7 +61,7 @@ def transitions(zone: str, year: int = REFERENCE_YEAR) -> list[Transition]:
             found.append(Transition(datetime.fromtimestamp(hi, timezone.utc), prev_off, off))
             prev_off = off
         prev_ts = ts
-    return found
+    return tuple(found)
 
 
 def _describe(t: Transition, zone: str) -> str:
@@ -81,6 +89,7 @@ def scenarios(zone: str, year: int = REFERENCE_YEAR) -> list[Scenario]:
         if t.is_spring:
             specs = [
                 ("before", "1 minute before the gap", -60),
+                ("at", "the exact instant the clocks jump", 0),
                 ("after", "1 minute after the gap", 60),
             ]
             label_prefix = "Spring forward"
@@ -88,6 +97,7 @@ def scenarios(zone: str, year: int = REFERENCE_YEAR) -> list[Scenario]:
             repeat = int((t.offset_before - t.offset_after).total_seconds())
             specs = [
                 ("before", "1 minute before the repeated time", -60),
+                ("at", "the exact instant the clocks go back", 0),
                 ("first-repeat", "first pass through the repeated time", -repeat // 2),
                 ("second-repeat", "second pass through the repeated time", repeat // 2),
                 ("after", "1 minute after the repeated time", repeat + 60),

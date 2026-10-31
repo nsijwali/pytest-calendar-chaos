@@ -3,6 +3,27 @@
 All notable changes to this project are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [SemVer](https://semver.org/).
 
+## [0.5.0] - 2026-11-01
+
+### Added
+- `century` preset: leap day 2000, and Feb 28 / Mar 1 2100 (not a leap year), plus the last
+  microsecond of Feb 28 2100.
+- `iso_week` cases for leap year 2020, which also has 53 ISO weeks
+  (`iso-week-53-leap-2020-12-31`, `iso-week-53-new-year-2021`).
+- `dst` cases at the exact transition instant: `dst-spring-at-2027` and `dst-fall-at-2027`.
+  Suites using `cases=["dst"]` now run two more scenarios per zone with DST.
+
+### Changed
+- **Marker arguments are validated.** Unknown keyword arguments (for example `zone=` instead of
+  `zones=`), extra positional arguments, non-string entries in `cases`/`zones` and a non-boolean
+  `tick` are now collection errors. Previously `zone=[...]` was silently ignored and the test ran
+  in UTC. A marker that relied on that will now fail with a clear message.
+- Reproduce commands are quoted for the user's shell (`shlex` on POSIX, Windows rules on Windows).
+  Test IDs containing `$(...)`, backticks or spaces now paste safely; the path in the second
+  command is quoted too. Quotes in the printed command change from `"..."` to `'...'` on POSIX.
+- DST transitions are cached per zone and year, so repeated expansion no longer rescans the year.
+- README: odd UTC offsets, the tz database policy, and the new cases.
+
 ## [0.4.1] - 2026-10-23
 
 ### Changed

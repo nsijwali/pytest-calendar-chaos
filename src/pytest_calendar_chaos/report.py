@@ -2,20 +2,32 @@
 
 from __future__ import annotations
 
+import shlex
+import subprocess
+import sys
 from datetime import timezone
 
 from pytest_calendar_chaos.catalog import Scenario
 
+_WINDOWS = sys.platform == "win32"
 
-def _quote(nodeid: str) -> str:
-    return '"' + nodeid.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+def quote_arg(text: str) -> str:
+    """Quote ``text`` as one literal argument for the user's shell.
+
+    POSIX shells expand ``$(...)``, backticks and ``$VAR`` inside double quotes, so use
+    single-quote quoting there. ``shlex`` does not apply to ``cmd.exe``, so use the Windows rules.
+    """
+    if _WINDOWS:
+        return subprocess.list2cmdline([text])
+    return shlex.quote(text)
 
 
 def reproduce_lines(nodeid: str, scenario: Scenario) -> list[str]:
     path = nodeid.split("::")[0]
     return [
-        f"pytest {_quote(nodeid)}",
-        f"pytest {path} --calendar-case {scenario.id}",
+        f"pytest {quote_arg(nodeid)}",
+        f"pytest {quote_arg(path)} --calendar-case {quote_arg(scenario.id)}",
     ]
 
 

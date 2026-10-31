@@ -98,7 +98,9 @@ def test_unknown_preset_error(pytester: pytest.Pytester) -> None:
     )
     result = pytester.runpytest()
     result.assert_outcomes(errors=1)
-    result.stdout.fnmatch_lines(["*unknown preset 'bogus'*valid presets: dst, iso_week, leap_day*"])
+    result.stdout.fnmatch_lines(
+        ["*unknown preset 'bogus'*valid presets: century, dst, iso_week, leap_day*"]
+    )
 
 
 def test_unknown_zone_error(pytester: pytest.Pytester) -> None:
@@ -139,3 +141,35 @@ def test_conflict_with_time_machine_marker(pytester: pytest.Pytester) -> None:
     result = pytester.runpytest()
     result.assert_outcomes(errors=1)
     result.stdout.fnmatch_lines(["*conflicts with the time_machine marker*"])
+
+
+@pytest.mark.parametrize(
+    ("marker", "message"),
+    [
+        (
+            'calendar_chaos(cases=["leap_day"], zone=["Asia/Tokyo"])',
+            "unknown argument 'zone'*did you mean 'zones'",
+        ),
+        ("calendar_chaos(cases=[123])", "'cases' must contain only strings"),
+        ('calendar_chaos(cases=["leap_day"], zones=[1])', "'zones' must contain only strings"),
+        ('calendar_chaos(cases=["leap_day"], tick="yes")', "'tick' must be True or False"),
+        ('calendar_chaos(["leap_day"], ["UTC"])', "at most one positional argument"),
+        ('calendar_chaos(["leap_day"], cases=["leap_day"])', "both positionally and by name"),
+        ("calendar_chaos(cases=5)", "'cases' must be a non-empty list"),
+    ],
+)
+def test_malformed_marker_arguments_fail_loudly(
+    pytester: pytest.Pytester, marker: str, message: str
+) -> None:
+    pytester.makepyfile(
+        f"""
+        import pytest
+
+        @pytest.mark.{marker}
+        def test_it():
+            pass
+        """
+    )
+    result = pytester.runpytest()
+    result.stdout.fnmatch_lines([f"*calendar_chaos: *{message}*"])
+    assert result.ret != 0

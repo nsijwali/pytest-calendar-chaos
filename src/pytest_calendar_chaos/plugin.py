@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import difflib
 from collections.abc import Generator
-from typing import Any
+from typing import Any, NoReturn
 
 import pytest
 import time_machine
@@ -59,18 +60,43 @@ def pytest_configure(config: pytest.Config) -> None:
     config.stash[_matched_ids] = set()
 
 
+_MARKER_KWARGS = ("cases", "zones", "tick")
+
+
+def _fail_marker(message: str) -> NoReturn:
+    pytest.fail(f"{MARKER}: {message}", pytrace=False)
+
+
+def _name_list(value: object, name: str, hint: str) -> list[str]:
+    if not isinstance(value, (list, tuple)) or not value:
+        _fail_marker(f"'{name}' must be a non-empty list of {hint}")
+    items = list(value)
+    bad = [item for item in items if not isinstance(item, str)]
+    if bad:
+        _fail_marker(f"'{name}' must contain only strings, got {bad!r}")
+    return items
+
+
 def _marker_args(marker: pytest.Mark, default_zones: list[str]) -> tuple[list[str], list[str]]:
+    """Validate the marker's arguments, failing loudly instead of silently using defaults."""
+    if len(marker.args) > 1:
+        _fail_marker("takes at most one positional argument (cases); pass zones= and tick= by name")
+    for key in marker.kwargs:
+        if key not in _MARKER_KWARGS:
+            close = difflib.get_close_matches(key, _MARKER_KWARGS, n=1)
+            hint = f" (did you mean '{close[0]}'?)" if close else ""
+            _fail_marker(f"unknown argument '{key}'{hint}; valid: {', '.join(_MARKER_KWARGS)}")
+    if marker.args and "cases" in marker.kwargs:
+        _fail_marker("'cases' was given both positionally and by name")
     cases = marker.kwargs.get("cases", marker.args[0] if marker.args else None)
-    if isinstance(cases, str) or not cases:
-        pytest.fail(
-            f"{MARKER}: 'cases' must be a non-empty list of preset names; "
-            f"valid presets: {', '.join(catalog.preset_names())}",
-            pytrace=False,
-        )
+    presets = f"preset names; valid presets: {', '.join(catalog.preset_names())}"
+    case_list = _name_list(cases, "cases", presets)
     zones = marker.kwargs.get("zones", default_zones)
-    if isinstance(zones, str) or not zones:
-        pytest.fail(f"{MARKER}: 'zones' must be a non-empty list of IANA names", pytrace=False)
-    return list(cases), list(zones)
+    zone_list = _name_list(zones, "zones", "IANA zone names")
+    tick = marker.kwargs.get("tick", False)
+    if not isinstance(tick, bool):
+        _fail_marker(f"'tick' must be True or False, got {tick!r}")
+    return case_list, zone_list
 
 
 def _selected(scenario: catalog.Scenario, wanted: set[str]) -> bool:
@@ -167,7 +193,7 @@ def pytest_terminal_summary(terminalreporter: Any, exitstatus: int, config: pyte
         for rep in failed:
             scenario_id = dict(rep.user_properties)[PROPERTY_KEY]
             terminalreporter.write_line(f"{rep.nodeid}  [{scenario_id}]")
-            terminalreporter.write_line(f'  Reproduce: pytest "{rep.nodeid}"')
+            terminalreporter.write_line(f"  Reproduce: pytest {report.quote_arg(rep.nodeid)}")
 
     # Under xdist the controller never runs collection hooks, so it cannot know what matched.
     if getattr(config.option, "dist", "no") != "no":

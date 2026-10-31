@@ -43,8 +43,10 @@ def test_new_york_scenarios_ids_order_and_folds() -> None:
     found = dst.scenarios("America/New_York")
     assert [s.id for s in found] == [
         "dst-spring-before-2027@america-new-york",
+        "dst-spring-at-2027@america-new-york",
         "dst-spring-after-2027@america-new-york",
         "dst-fall-before-2027@america-new-york",
+        "dst-fall-at-2027@america-new-york",
         "dst-fall-first-repeat-2027@america-new-york",
         "dst-fall-second-repeat-2027@america-new-york",
         "dst-fall-after-2027@america-new-york",
@@ -64,6 +66,13 @@ def test_new_york_scenarios_ids_order_and_folds() -> None:
         hours=1, minutes=1
     )
     assert by_id["dst-spring-before-2027"].moment.astimezone(UTC) == _utc(2027, 3, 14, 6, 59, 0)
+    # The exact transition instant: the new offset already applies, and 02:00 is skipped.
+    spring_at = by_id["dst-spring-at-2027"].moment
+    assert spring_at.astimezone(UTC) == _utc(2027, 3, 14, 7, 0, 0)
+    assert (spring_at.hour, spring_at.utcoffset()) == (3, timedelta(hours=-4))
+    fall_at = by_id["dst-fall-at-2027"].moment
+    assert fall_at.astimezone(UTC) == fall_t
+    assert (fall_at.hour, fall_at.fold, fall_at.utcoffset()) == (1, 1, timedelta(hours=-5))
     assert by_id["dst-spring-after-2027"].moment.astimezone(UTC) == _utc(2027, 3, 14, 7, 1, 0)
 
 
@@ -78,7 +87,7 @@ def test_offsets_around_every_transition_are_consistent(zone: str) -> None:
     for s in dst.scenarios(zone):
         kind_after = s.case.id.split("-")
         t_utc = s.moment.astimezone(UTC)
-        expected_after = "after" in kind_after or "second" in kind_after
+        expected_after = any(k in kind_after for k in ("after", "second", "at"))
         offsets = {
             tr.offset_after if expected_after else tr.offset_before for tr in dst.transitions(zone)
         }
@@ -127,8 +136,8 @@ def test_expand_dst_multiple_zones_skips_zones_without_dst() -> None:
     found = catalog.expand(["dst"], ["UTC", "America/New_York", "Asia/Tokyo", "Europe/London"])
     zones = {s.zone for s in found}
     assert zones == {"America/New_York", "Europe/London"}
-    assert len(found) == 12
-    assert len({s.id for s in found}) == 12
+    assert len(found) == 16
+    assert len({s.id for s in found}) == 16
 
 
 def test_expand_dst_without_any_dst_zone_errors() -> None:
@@ -140,3 +149,12 @@ def test_expand_dst_mixes_with_other_presets_in_order() -> None:
     found = catalog.expand(["midnight", "dst"], ["America/New_York"])
     assert found[0].case.preset == "midnight"
     assert found[2].case.preset == "dst"
+
+
+def test_transitions_are_cached_but_callers_get_a_fresh_list() -> None:
+    first = dst.transitions("Europe/Paris", 2027)
+    first.clear()  # mutating the returned list must not corrupt the cache
+    assert len(dst.transitions("Europe/Paris", 2027)) == 2
+    before = dst._transitions.cache_info().hits
+    dst.transitions("Europe/Paris", 2027)
+    assert dst._transitions.cache_info().hits == before + 1
