@@ -1,6 +1,9 @@
 import re
+import sys
 
 import pytest
+
+from pytest_calendar_chaos import report
 
 FAILING = """
 import pytest
@@ -22,10 +25,12 @@ def test_failure_section_contents(pytester: pytest.Pytester) -> None:
             "Zone:      UTC",
             "Clock:     2027-01-31T12:00:00+00:00",
             "Frozen:    yes (tick=False)",
-            'Reproduce: pytest "test_billing.py::test_renewal[[]month-end-jan-31-2027[]]"',
-            "           pytest test_billing.py --calendar-case month-end-jan-31-2027",
         ]
     )
+    nodeid = "test_billing.py::test_renewal[month-end-jan-31-2027]"
+    out = result.stdout.str()
+    assert f"Reproduce: pytest {report.quote_arg(nodeid)}" in out
+    assert "pytest test_billing.py --calendar-case month-end-jan-31-2027" in out
     result.stdout.fnmatch_lines(
         [
             "Zone:      America/New_York",
@@ -78,10 +83,39 @@ def test_terminal_summary_lists_each_failure(pytester: pytest.Pytester) -> None:
 def test_reproduce_round_trip(pytester: pytest.Pytester) -> None:
     pytester.makepyfile(test_billing=FAILING)
     out = pytester.runpytest().stdout.str()
-    nodeid = re.search(r'Reproduce: pytest "([^"]+)"', out)
+    nodeid = re.search(r"Reproduce: pytest (\S+)", out)
     assert nodeid is not None
-    rerun = pytester.runpytest(nodeid.group(1))
+    rerun = pytester.runpytest(nodeid.group(1).strip("'\""))
     rerun.assert_outcomes(failed=1)
 
     by_id = pytester.runpytest("test_billing.py", "--calendar-case", "month-end-jan-31-2027")
     by_id.assert_outcomes(failed=2)  # base ID matches both zones
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX shell quoting")
+def test_reproduce_lines_are_safe_to_paste_into_a_posix_shell() -> None:
+    import shlex
+
+    from pytest_calendar_chaos import catalog, report
+
+    scenario = catalog.expand(["leap_day"])[0]
+    nodeid = "dir with space/test_x.py::test_a[$(touch pwned)`id`\"'q]"
+    lines = report.reproduce_lines(nodeid, scenario)
+    # shlex round trip proves each is one literal argument, with no expansion left to the shell.
+    assert shlex.split(lines[0]) == ["pytest", nodeid]
+    assert shlex.split(lines[1]) == [
+        "pytest",
+        "dir with space/test_x.py",
+        "--calendar-case",
+        scenario.id,
+    ]
+
+
+def test_reproduce_lines_use_windows_quoting_on_windows(monkeypatch: pytest.MonkeyPatch) -> None:
+    from pytest_calendar_chaos import catalog, report
+
+    monkeypatch.setattr(report, "_WINDOWS", True)
+    scenario = catalog.expand(["leap_day"])[0]
+    assert (
+        report.reproduce_lines("a b/test_x.py::t[1]", scenario)[0] == 'pytest "a b/test_x.py::t[1]"'
+    )

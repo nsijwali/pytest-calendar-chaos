@@ -15,7 +15,8 @@ def test_buggy_example_fails_on_month_end_and_reports(pytester: pytest.Pytester)
     assert result.ret != 0
     assert "month-end-jan-31-2027" in out
     assert "Calendar chaos" in out
-    assert 'Reproduce: pytest "test_billing.py::test_next_renewal_is_one_month_later[' in out
+    assert "Reproduce: pytest " in out
+    assert "test_billing.py::test_next_renewal_is_one_month_later[" in out
     result.assert_outcomes(
         failed=result.parseoutcomes()["failed"], passed=result.parseoutcomes()["passed"]
     )

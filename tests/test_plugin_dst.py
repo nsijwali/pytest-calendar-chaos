@@ -13,7 +13,7 @@ def test_dst_preset_freezes_exact_moments(pytester: pytest.Pytester) -> None:
             assert calendar_case.case.preset == "dst"
         """
     )
-    pytester.runpytest().assert_outcomes(passed=12)
+    pytester.runpytest().assert_outcomes(passed=16)
 
 
 def test_dst_ids_in_collection(pytester: pytest.Pytester) -> None:
@@ -39,7 +39,7 @@ def test_dst_failure_report_has_transition_line(pytester: pytest.Pytester) -> No
         """
     )
     result = pytester.runpytest()
-    result.assert_outcomes(passed=5, failed=1)
+    result.assert_outcomes(passed=7, failed=1)
     result.stdout.fnmatch_lines(
         [
             "Case:*[[]dst / dst-spring-before-2027[]]",

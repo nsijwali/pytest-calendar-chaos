@@ -139,8 +139,29 @@ def test_iso_week_53_is_visible_to_the_code_under_test(pytester: pytest.Pytester
                 assert now.year == 2027 and (iso_year, iso_week) == (2026, 53)
             elif calendar_case.case.id == "iso-week-53-2026-12-31":
                 assert (iso_year, iso_week) == (2026, 53)
+            elif now.year in (2020, 2021):  # leap year 2020 also has 53 ISO weeks
+                assert (iso_year, iso_week) == (2020, 53)
             else:
                 assert (iso_year, iso_week) == (2027, 1)
         """
     )
-    pytester.runpytest().assert_outcomes(passed=3)
+    pytester.runpytest().assert_outcomes(passed=5)
+
+
+def test_2100_is_not_a_leap_year_under_the_frozen_clock(pytester: pytest.Pytester) -> None:
+    pytester.makepyfile(
+        """
+        from datetime import datetime, timedelta
+        import pytest
+
+        @pytest.mark.calendar_chaos(cases=["century"])
+        def test_a(calendar_case):
+            now = datetime.now()
+            next_day = now + timedelta(days=1)
+            if now.year == 2000:
+                assert (next_day.month, next_day.day) == (3, 1) and now.day == 29
+            elif now.day == 28:
+                assert (next_day.month, next_day.day) == (3, 1)  # no Feb 29 in 2100
+        """
+    )
+    pytester.runpytest().assert_outcomes(passed=4)

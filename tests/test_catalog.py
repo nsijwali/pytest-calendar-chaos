@@ -21,7 +21,8 @@ def test_catalog_size() -> None:
         "month_end": 5,
         "year_end": 3,
         "midnight": 2,
-        "iso_week": 3,
+        "iso_week": 5,
+        "century": 4,
         "y2038": 3,
     }
 
@@ -46,7 +47,7 @@ def test_last_microsecond_crosses_boundary() -> None:
     cases = [
         c for c in ALL_CASES if "last-microsecond" in c.id or c.id == "midnight-before-2027-06-15"
     ]
-    assert len(cases) == 3
+    assert len(cases) == 4
     for c in cases:
         assert (c.wall_time + timedelta(microseconds=1)).date() > c.wall_time.date()
 
@@ -85,7 +86,8 @@ def test_zone_slug() -> None:
 def test_expand_unknown_preset_lists_valid() -> None:
     with pytest.raises(
         ValueError,
-        match="valid presets: dst, iso_week, leap_day, midnight, month_end, y2038, year_end",
+        match="valid presets: century, dst, iso_week, leap_day, midnight, month_end, "
+        "y2038, year_end",
     ):
         expand(["nope"])
 
@@ -132,3 +134,18 @@ def test_utc_cases_keep_the_same_instant_in_every_zone() -> None:
 def test_local_cases_still_follow_the_zone() -> None:
     (s,) = [s for s in expand(["leap_day"], ["Asia/Kolkata"]) if s.case.id == "leap-day-2028"]
     assert s.moment.hour == 12 and s.moment.astimezone(timezone.utc).hour == 6
+
+
+def test_century_years_follow_the_gregorian_rule() -> None:
+    import calendar
+
+    by_id = {c.id: c.wall_time for c in PRESETS["century"]}
+    assert calendar.isleap(2000) and by_id["century-leap-2000-02-29"].day == 29
+    assert not calendar.isleap(2100)
+    assert by_id["century-2100-02-28"].month == 2 and by_id["century-2100-03-01"].month == 3
+
+
+def test_leap_year_with_iso_week_53() -> None:
+    by_id = {c.id: c.wall_time.isocalendar() for c in PRESETS["iso_week"]}
+    assert tuple(by_id["iso-week-53-leap-2020-12-31"])[:2] == (2020, 53)
+    assert tuple(by_id["iso-week-53-new-year-2021"])[:2] == (2020, 53)

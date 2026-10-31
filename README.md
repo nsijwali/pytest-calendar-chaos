@@ -35,7 +35,7 @@ Case:      31-day month end  [month_end / month-end-jan-31-2027]
 Zone:      UTC
 Clock:     2027-01-31T12:00:00+00:00
 Frozen:    yes (tick=False)
-Reproduce: pytest "test_billing.py::test_next_renewal_is_one_month_later[month-end-jan-31-2027]"
+Reproduce: pytest 'test_billing.py::test_next_renewal_is_one_month_later[month-end-jan-31-2027]'
            pytest test_billing.py --calendar-case month-end-jan-31-2027
 ```
 
@@ -53,11 +53,13 @@ Requires Python 3.10+ and pytest 8+. Clock mocking is done entirely by `time-mac
 module (`pytestmark`). The closest marker wins.
 
 - `cases`: required, non-empty list of presets: `leap_day`, `month_end`, `year_end`, `midnight`,
-  `iso_week`, `y2038`, `dst` (`-` and `_` are interchangeable). Unknown names are a collection error listing the valid
-  presets.
+  `iso_week`, `century`, `y2038`, `dst` (`-` and `_` are interchangeable). Unknown names are a
+  collection error listing the valid presets.
 - `zones`: optional IANA zone names, default `["UTC"]`. Each fixed case is a local wall-clock time
   placed in each zone. An unknown zone is a collection error naming it.
 - `tick`: passed to `time_machine.travel`. Default `False` (frozen).
+- Unknown or malformed marker arguments are a collection error, never silently ignored: a typo
+  such as `zone=[...]` fails with a "did you mean `zones`" hint instead of running in UTC.
 - Combining with time-machine's own `time_machine` marker is a collection error.
 
 Test IDs look like `test_x[leap-day-2028]` (UTC) or `test_x[leap-day-2028@america-new-york]`.
@@ -99,13 +101,19 @@ Fixed presets use fixed years (2027 normal, 2028 leap); nothing is computed from
 | month_end | `month-end-jan-31-2027`, `month-end-feb-28-2027`, `month-start-mar-01-2027`, `month-end-apr-30-2027`, `month-end-feb-29-2028` |
 | year_end | `year-end-2027`, `year-end-last-microsecond-2027`, `new-year-2028` |
 | midnight | `midnight-before-2027-06-15`, `midnight-after-2027-06-16` |
-| iso_week | `iso-week-53-2026-12-31`, `iso-week-53-new-year-2027`, `iso-week-1-2027-01-04` |
+| iso_week | `iso-week-53-2026-12-31`, `iso-week-53-new-year-2027`, `iso-week-1-2027-01-04`, `iso-week-53-leap-2020-12-31`, `iso-week-53-new-year-2021` |
+| century | `century-leap-2000-02-29`, `century-2100-02-28`, `century-2100-03-01`, `century-2100-02-28-last-microsecond` |
 | y2038 | `y2038-before-limit`, `y2038-last-valid-second`, `y2038-after-limit` |
 | dst | computed per zone from `zoneinfo` for 2027 (below) |
 
 `iso_week` covers 2026, a year with 53 ISO weeks: Dec 31 2026 and Jan 1 2027 both fall in ISO week 53
 of ISO year 2026, so code that mixes the calendar year (`%Y`) with the ISO week (`%V`) or uses
 `%G` incorrectly breaks here.
+
+`iso_week` also has 2020, a leap year that starts on a Wednesday and so also has 53 ISO weeks.
+
+`century` covers the Gregorian century rule: 2000 is a leap year (divisible by 400) and 2100 is not
+(divisible by 100 but not 400), so there is no Feb 29, 2100.
 
 `y2038` sits on the signed 32-bit `time_t` limit, 2038-01-19 03:14:07 UTC (2\*\*31 - 1 seconds). These
 three cases are absolute UTC instants, so they are the same moment in every zone (only the local
@@ -114,14 +122,23 @@ stores times in 32-bit fields, such as databases, serialization formats and C ex
 
 ### DST
 
-For each zone with a transition in 2027, spring-forward gets `dst-spring-before-2027` and
-`dst-spring-after-2027` (one minute either side). Fall-back gets `dst-fall-before-2027`,
-`dst-fall-first-repeat-2027` (`fold=0`), `dst-fall-second-repeat-2027` (`fold=1`) and
-`dst-fall-after-2027`. IDs carry the zone suffix, e.g. `dst-fall-second-repeat-2027@europe-london`.
+For each zone with a transition in 2027, spring-forward gets `dst-spring-before-2027`,
+`dst-spring-at-2027` (the exact transition instant) and `dst-spring-after-2027` (one minute either
+side). Fall-back gets `dst-fall-before-2027`, `dst-fall-at-2027` (the exact instant, which is the
+start of the second pass), `dst-fall-first-repeat-2027` (`fold=0`), `dst-fall-second-repeat-2027`
+(`fold=1`) and `dst-fall-after-2027`. IDs carry the zone suffix, e.g. `dst-fall-second-repeat-2027@europe-london`.
 Zones without DST in 2027 (`UTC`, `Asia/Tokyo`) contribute nothing; if no listed zone has DST,
 collection fails with a clear message. If a zone has several transitions of one kind in the year,
 IDs are numbered (`dst-spring-2-before-2027`). Failure reports add a `Transition:` line, for
 example `2027-03-14 02:00 local clocks jump to 03:00 (America/New_York)`.
+
+Odd UTC offsets work like any other zone: pass `zones=["Asia/Kolkata", "Asia/Kathmandu"]` (+5:30 and
++5:45) or `Australia/Lord_Howe` (30-minute DST shift, so `dst` includes it) to run every case there.
+Only `UTC` is in the default zone list.
+
+**Time zone database.** DST cases are computed from the installed tz database (the system's, or the
+`tzdata` package). If a government changes its rules, the 2027 transitions can differ between tz
+database versions. Pin `tzdata` in CI if you need byte-identical scenarios across machines.
 
 Case IDs are a public API: adding cases is a minor release, changing or removing one is breaking.
 
